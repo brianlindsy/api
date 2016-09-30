@@ -4,6 +4,7 @@ basePath=/rest
 debug=true
 
 brokerUrl=https://localhost:8090
+samlServiceUrl=http://localhost:8080
 
 keyLocation=C:\\JSONPulseRsaJoseJWebKeyTest.txt
 jwtAllowedClockSkew=30

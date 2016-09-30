@@ -32,6 +32,7 @@ import com.google.common.io.Resources;
 
 import static org.junit.Assert.*;
 
+import org.springframework.security.saml.SAMLCredential;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
@@ -39,11 +40,14 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.client.match.MockRestRequestMatchers;
 import org.springframework.test.web.client.response.MockRestResponseCreators;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.ws.soap.saaj.SaajSoapMessage;
 
 import ihe.iti.xds_b._2007.RetrieveDocumentSetRequestType;
 import ihe.iti.xds_b._2007.RetrieveDocumentSetResponseType;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
@@ -53,7 +57,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import javax.xml.bind.JAXBException;
+import javax.xml.soap.MessageFactory;
+import javax.xml.soap.MimeHeaders;
+import javax.xml.soap.SOAPConstants;
 import javax.xml.soap.SOAPException;
+import javax.xml.soap.SOAPMessage;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes=ServiceApplicationTestConfig.class)
@@ -88,6 +96,33 @@ public class ServiceApplicationTests {
 	public void setUp() {
 		mockRestTemplate = new RestTemplate();
 		mockServer = MockRestServiceServer.createServer(mockRestTemplate);
+	}
+	
+	@Test 
+	public void testGetSAMLAssertion() throws SOAPException, SAMLException{
+		Resource documentsFile = resourceLoader.getResource("classpath:" + PATIENT_DISCOVERY_REQUEST_RESOURCE_FILE_NAME);
+		String xml = null;
+		try {
+			xml = Resources.toString(documentsFile.getURL(), Charsets.UTF_8);
+		}catch (IOException e){
+			e.printStackTrace();
+		}
+		MessageFactory factory = null;
+		try {
+			factory = MessageFactory.newInstance(SOAPConstants.SOAP_1_2_PROTOCOL);
+		} catch (SOAPException e1) {
+			e1.printStackTrace();
+		}
+		SOAPMessage soapMessage = null;
+		try {
+			soapMessage = factory.createMessage(new MimeHeaders(), new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
+		} catch (IOException | SOAPException e) {
+			e.printStackTrace();
+		}
+		SaajSoapMessage saajSoap = new SaajSoapMessage(soapMessage);
+
+		SAMLCredential saml = consumerService.getSAMLAssertion(soapMessage);
+		assertNotNull(saml);
 	}
 
 	@Test

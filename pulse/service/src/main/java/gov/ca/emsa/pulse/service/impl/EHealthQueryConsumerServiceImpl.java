@@ -9,6 +9,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
@@ -30,16 +31,28 @@ import javax.xml.soap.SOAPBodyElement;
 import javax.xml.soap.SOAPConstants;
 import javax.xml.soap.SOAPElementFactory;
 import javax.xml.soap.SOAPException;
+import javax.xml.soap.SOAPHeaderElement;
 import javax.xml.soap.SOAPMessage;
+import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Source;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
 
 import oasis.names.tc.ebxml_regrep.xsd.query._3.AdhocQueryRequest;
 import oasis.names.tc.ebxml_regrep.xsd.query._3.AdhocQueryResponse;
 
 import org.hl7.v3.*;
 import org.opensaml.common.SAMLException;
+import org.springframework.security.saml.SAMLCredential;
+import org.springframework.security.saml.parser.SAMLObject;
 import org.springframework.stereotype.Service;
+import org.springframework.ws.soap.SoapElement;
 import org.springframework.ws.soap.SoapHeaderElement;
+import org.springframework.ws.soap.SoapMessage;
 import org.springframework.ws.soap.saaj.SaajSoapMessage;
 import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
@@ -88,6 +101,32 @@ public class EHealthQueryConsumerServiceImpl implements EHealthQueryConsumerServ
 		}
 		return false;
 	}
+	
+	public SAMLCredential getSAMLAssertion(SOAPMessage soap) throws SOAPException, SAMLException{
+		Iterator<SOAPHeaderElement> security = soap.getSOAPHeader().examineAllHeaderElements();
+		while(security.hasNext()){
+			SOAPHeaderElement headerElem = security.next();
+			if(headerElem.getElementName().getLocalName().equals("Security")){
+				Node contents = headerElem.getFirstChild().getNextSibling();
+				String string = nodeToString(contents);
+				SAMLCredential samlCred = unMarshallSAMLCredential(string);
+				return samlCred;
+			}
+		}
+		return null;
+	}
+	
+	private String nodeToString(Node node) {
+		  StringWriter sw = new StringWriter();
+		  try {
+		    Transformer t = TransformerFactory.newInstance().newTransformer();
+		    t.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+		    t.transform(new DOMSource(node), new StreamResult(sw));
+		  } catch (TransformerException te) {
+		    System.out.println("nodeToString Transformer Exception");
+		  }
+		  return sw.toString();
+		}
 	
 	public String marshallPatientDiscoveryResponse(PRPAIN201310UV02 response) throws JAXBException{
 		MessageFactory factory = null;
@@ -232,6 +271,23 @@ public class EHealthQueryConsumerServiceImpl implements EHealthQueryConsumerServ
 		}
 		return unmarshaller;
 	}
+	
+	public SAMLCredential unMarshallSAMLCredential(String saml) throws SOAPException, SAMLException{
+
+		// Create a JAXB context
+		JAXBContext jc = createJAXBContext(SAMLObject.class);
+
+		// Create JAXB unmarshaller
+		Unmarshaller unmarshaller = createUnmarshaller(jc);
+
+		JAXBElement<?> samlObj = null;
+		try {
+			samlObj = (JAXBElement<?>) unmarshaller.unmarshal(new StreamSource(new StringReader(saml)), SAMLObject.class);
+		} catch (JAXBException e) {
+			logger.error(e);
+		}
+		return (SAMLCredential) samlObj.getValue();
+	}
 
 	public PRPAIN201305UV02 unMarshallPatientDiscoveryRequestObject(String xml) throws SOAPException, SAMLException{
 		MessageFactory factory = null;
@@ -247,11 +303,14 @@ public class EHealthQueryConsumerServiceImpl implements EHealthQueryConsumerServ
 			logger.error(e);
 		}
 		SaajSoapMessage saajSoap = new SaajSoapMessage(soapMessage);
+		
+		SoapHeaderElement wsse = null;
 
 		if(checkSecurityHeading(saajSoap)){
-
+			
+			//SAMLCredential saml = getSAMLAssertion(soapMessage);
+			//logger.info("SAML: " + saml);
 			Source requestSource = saajSoap.getSoapBody().getPayloadSource();
-
 			// Create a JAXB context
 			JAXBContext jc = createJAXBContext(PRPAIN201305UV02.class);
 
