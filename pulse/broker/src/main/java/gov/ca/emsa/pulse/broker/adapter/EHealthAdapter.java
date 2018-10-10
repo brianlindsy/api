@@ -390,7 +390,7 @@ public class EHealthAdapter implements Adapter {
 					if(matchingDto != null) {
 					    //read the binary document data from this DocumentResponse
 					    InputStream in = null;
-					    if(matchingDto.getHomeCommunityId().equals("urn:oid:2.16.840.1.113883.3.432.0.31.500") &&
+					    if(matchingDto.getHomeCommunityId().equals("sacvalleyOID") &&
 					            docResponse.getDocument() != null){
 					        // this is a sacvalley doc
 					        in = docResponse.getDocument().getDataSource().getInputStream();
