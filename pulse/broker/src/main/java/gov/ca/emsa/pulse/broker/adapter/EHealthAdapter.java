@@ -105,6 +105,17 @@ import oasis.names.tc.ebxml_regrep.xsd.query._3.AdhocQueryRequest;
 import oasis.names.tc.ebxml_regrep.xsd.query._3.AdhocQueryResponse;
 import oasis.names.tc.ebxml_regrep.xsd.rim._3.SlotType1;
 
+import javax.xml.soap.MessageFactory;
+import javax.xml.soap.SOAPConstants;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.ws.WebServiceMessageFactory;
+import org.springframework.ws.mime.MimeMessage;
+import org.springframework.xml.transform.StringSource;
+import org.springframework.ws.soap.saaj.SaajSoapMessageFactory;
+
 @Component
 public class EHealthAdapter implements Adapter {
 	public static final String HOME_COMMUNITY_ID = "2.16.840.1.113883.9.224";
@@ -339,6 +350,10 @@ public class EHealthAdapter implements Adapter {
 			MessageImpl msg = new MessageImpl();
 			msg.put(Message.CONTENT_TYPE, ct);
 			msg.setContent(InputStream.class, is);
+			if(!documents.get(0).getHomeCommunityId().equals("sacvalleyOID")){
+			    deserializer = new AttachmentDeserializer(msg);
+			    deserializer.initializeAttachments();
+			}
 			deserializer = new AttachmentDeserializer(msg);
 			deserializer.initializeAttachments();
 			InputStream attBody = msg.getContent(InputStream.class);
@@ -373,14 +388,20 @@ public class EHealthAdapter implements Adapter {
 					}
 
 					if(matchingDto != null) {
-						//read the binary document data from this DocumentResponse
-						InputStream in = null;
-						if(deserializer.hasNext()){
-							in = deserializer.readNext().getDataHandler().getDataSource().getInputStream();
-						}
-						StringWriter writer = new StringWriter();
-						IOUtils.copy(in, writer, Charset.forName("UTF-8"));
-						String dataStr = writer.toString();
+					    //read the binary document data from this DocumentResponse
+					    InputStream in = null;
+					    if(matchingDto.getHomeCommunityId().equals("urn:oid:2.16.840.1.113883.3.432.0.31.500") &&
+					            docResponse.getDocument() != null){
+					        // this is a sacvalley doc
+					        in = docResponse.getDocument().getDataSource().getInputStream();
+					    }else{
+					        if(deserializer.hasNext()){
+					            in = deserializer.readNext().getDataHandler().getDataSource().getInputStream();
+					        }
+					    }
+					    StringWriter writer = new StringWriter();
+					    IOUtils.copy(in, writer, Charset.forName("UTF-8"));
+					    String dataStr = writer.toString();
 						logger.trace("Converted binary to " + dataStr);
 						matchingDto.setContents(new String(dataStr.getBytes()));
 					}
