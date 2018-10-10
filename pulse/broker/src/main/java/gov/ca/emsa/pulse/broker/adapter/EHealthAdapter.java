@@ -381,7 +381,7 @@ public class EHealthAdapter implements Adapter {
 						DocumentDTO currDto = documents.get(i);
 						auditManager.createAuditEventDCXGatewayRetrieve("SUCCESS", user, endpoint.getUrl(), docResponse.getRepositoryUniqueId(), docResponse.getDocumentUniqueId(), docResponse.getHomeCommunityId(), patientMap.getExternalPatientRecordId());
 						if(currDto.getRepositoryUniqueId().equals(docResponse.getRepositoryUniqueId()) && 
-								currDto.getHomeCommunityId().equals(docResponse.getHomeCommunityId()) &&
+						        (currDto.getHomeCommunityId().equals(docResponse.getHomeCommunityId()) || docResponse.getHomeCommunityId() == null) &&
 								currDto.getDocumentUniqueId().equals(docResponse.getDocumentUniqueId())) {
 							matchingDto = currDto;
 						}
